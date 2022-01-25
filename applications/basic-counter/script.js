@@ -1,4 +1,5 @@
 import {
+  switchMap,
   fromEvent,
   interval,
   merge,
@@ -7,35 +8,25 @@ import {
   takeUntil,
   scan,
   map,
+  mapTo,
 } from 'rxjs';
 import { setCount, startButton, pauseButton } from './utilities';
 
 // observables created for dom nodes
-const start$ = fromEvent(startButton, 'click');
-const pause$ = fromEvent(pauseButton, 'click');
+const start$ = fromEvent(startButton, 'click').pipe(mapTo(true));
+const pause$ = fromEvent(pauseButton, 'click').pipe(mapTo(false));
 
-let timer$ = interval(1000).pipe(
-  skipUntil(start$),
-  scan((acc, curr) => {
-    return acc + 1;
-  }, 0),
-  takeUntil(pause$),
+// switchMap play and pause
+// subscribe to timer when playing
+
+const timer$ = merge(start$, pause$).pipe(
+  switchMap((isRunning) => {
+    console.log('isRunning', isRunning);
+    return isRunning ? interval(1000) : NEVER;
+  }),
+  // must use scan to maintain the state
+  // the interval will create a fresh interval every time
+  scan((total) => total + 1, 0),
 );
 
 timer$.subscribe(setCount);
-
-// subscribe to start$
-// -- create timer
-// -- subscribe to cound
-
-// pause, unsubscribe
-
-// let timer$ = interval(1000);
-// let tSub;
-// start$.subscribe((x) => {
-//   tSub = timer$.subscribe(setCount);
-// });
-
-// pause$.subscribe(() => {
-//   tSub.unsubscribe()
-// });
