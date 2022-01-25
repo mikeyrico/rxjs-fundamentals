@@ -11,16 +11,6 @@ import {
   fetchData,
 } from './utilities';
 
-const showLoading$ = of(true).pipe(
-  delay(+showLoadingAfterField.value),
-  tap(() => showLoading(true)),
-);
-
-const hideLoading$ = of(true).pipe(
-  delay(+showLoadingForAtLeastField.value),
-  tap(() => showLoading(false)),
-);
-
 const loading$ = fromEvent(form, 'submit').pipe(
   // before
   // tap(() => showLoading(true)),
@@ -28,7 +18,29 @@ const loading$ = fromEvent(form, 'submit').pipe(
   // tap(() => showLoading(false))
 
   // after with show and hide loading observables above
-  exhaustMap(() => concat(showLoading$, fetchData(), hideLoading$)),
+  exhaustMap(() => {
+    const data$ = fetchData().pipe(shareReplay(1));
+    const showLoading$ = of(true).pipe(
+      delay(+showLoadingAfterField.value),
+      tap(() => showLoading(true)),
+    );
+
+    // const hideLoading$ = of(true).pipe(
+    //   delay(+showLoadingForAtLeastField.value),
+    //   tap(() => showLoading(false)),
+    // );
+
+    const timeToHideLoading$ = timer(+showLoadingForAtLeastField.value).pipe(first());
+
+    const shouldShowLoading$ = concat(
+      showLoading$,
+      timeToHideLoading$,
+      data$.pipe(tap(() => showLoading(false)))
+    )
+    // const shouldShowLoading$ = race(showLoading$, data$);
+    // return concat(shouldShowLoading$, hideLoading$);
+    return race(shouldShowLoading$, data$)
+  }),
 );
 
 loading$.subscribe();
